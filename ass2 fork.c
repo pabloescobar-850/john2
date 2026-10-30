@@ -7,193 +7,116 @@
 //using WAIT system call to sort the integers using any sorting algorithm. Demonstrate zombie and
 
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/wait.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<string.h>
+#include<fcntl.h>
+#include<sys/wait.h>
+#include<sys/types.h>
+#include<pthread.h>
+#include<semaphore.h>
 
-// Bubble Sort - Used by Parent
-void bubbleSort(int a[], int n)
-{
-    int temp;
-
-    for (int i = 0; i < n - 1; i++)
-    {
-        for (int j = 0; j < n - i - 1; j++)
-        {
-            if (a[j] > a[j + 1])
-            {
-                temp = a[j];
-                a[j] = a[j + 1];
-                a[j + 1] = temp;
-            }
+// bubble sort
+void bubble(int arr[],int n){
+  int i,j,temp;
+  for(i=0;i<n-1;i++){
+     for(j=0;j<n-i-1;j++){
+        if(arr[j]>arr[j+1]){
+           temp=arr[j];
+           arr[j]=arr[j+1];
+           arr[j+1]=temp;
         }
-    }
+     }
+  }
 }
 
-// Selection Sort - Used by Child
-void selectionSort(int a[], int n)
-{
-    int temp, min;
-
-    for (int i = 0; i < n - 1; i++)
-    {
-        min = i;
-
-        for (int j = i + 1; j < n; j++)
-        {
-            if (a[j] < a[min])
-                min = j;
-        }
-
-        temp = a[i];
-        a[i] = a[min];
-        a[min] = temp;
-    }
+//display
+void display(int arr[], int n){
+   int i;
+   for(i=0;i<n;i++){
+      printf("%d \n",arr[i]);
+   }
 }
 
-// Function to display array
-void display(int a[], int n)
-{
-    for (int i = 0; i < n; i++)
-        printf("%d ", a[i]);
-
-    printf("\n");
+int main(){
+   //input and process creation
+   int i;
+   int arr[100];
+   int n;
+   printf("Enter the number of integres:- \n");
+   scanf("%d",&n);
+   
+   for(i=0;i<n;i++){
+     printf("Enter the %d integer \n",i);
+     scanf("%d",&arr[i]);
+   }
+   
+   pid_t pid=fork();
+   if(pid<0){
+      perror("fork failed");
+      return 1;
+   }
+   //child
+   if(pid==0){
+      printf("Child process \n");
+      printf("child pid is:- %d \n",getpid());
+      printf("parent pid is:- %d \n",getppid());
+      
+      printf("child executing is process indepndelty \n");
+      bubble(arr,n);
+      printf("sorted array is:- \n");
+      display(arr,n);
+      exit(0);
+   }
+   else{
+      printf("Parent process \n");
+      printf("parent pid is:- %d \n",getpid());
+      printf("child pid is:- %d \n",pid);
+      
+      printf("parent execruing its own process \n");
+      bubble(arr,n);
+      printf("sorted array is:- \n");
+      display(arr,n);
+      wait(NULL);
+      printf("Parent is waiting for child usig wait()\n");
+   }
+   //zombie 
+   pid=fork();
+   if(pid<0){
+      perror("fork failed");
+      return 1;
+   }
+   if(pid==0){
+      printf("Chid termniated \n");
+      exit(0);
+   }
+   else{
+      printf("zombie demo and child left pid is:- %d \n",pid);
+      sleep(2);
+      wait(NULL);
+      printf("child repeard using wait() \n");
+   }
+   
+   //orphan
+   pid=fork();
+   if(pid<0){
+      perror("fork failed");
+      return 1;
+   }
+   if(pid==0){
+      sleep(2);
+      printf("oprhan demo \n");
+      printf("child pid is:- %d \n",getpid());
+      printf("new parent pid is:- %d \n",getppid());
+      exit(0);
+   }
+   else{
+      printf("parent process got terminated \n");
+      exit(0);
+   }
+return 0;
 }
-
-int main()
-{
-    int a[100], n, choice;
-    pid_t pid;
-
-    // Input integers
-    printf("Enter number of elements: ");
-    scanf("%d", &n);
-
-    if (n < 1 || n > 100)
-    {
-        printf("Invalid number of elements.\n");
-        return 1;
-    }
-
-    printf("Enter elements:\n");
-
-    for (int i = 0; i < n; i++)
-        scanf("%d", &a[i]);
-
-    // Display menu
-    printf("\n1. Fork and Wait");
-    printf("\n2. Zombie Process");
-    printf("\n3. Orphan Process");
-    printf("\nEnter your choice: ");
-    scanf("%d", &choice);
-
-    // Create child process
-    pid = fork();
-
-    if (pid < 0)
-    {
-        printf("Fork failed!\n");
-        return 1;
-    }
-
-    // METHOD 1: FORK AND WAIT
-    if (choice == 1)
-    {
-        if (pid == 0)
-        {
-            // Child process sorts using Selection Sort
-            printf("\nChild Process ID: %d\n", getpid());
-
-            selectionSort(a, n);
-
-            printf("Child Sorted Array: ");
-            display(a, n);
-
-            exit(0);
-        }
-        else
-        {
-            // Parent sorts using Bubble Sort
-            printf("\nParent Process ID: %d\n", getpid());
-
-            bubbleSort(a, n);
-
-            printf("Parent Sorted Array: ");
-            display(a, n);
-
-            // Parent waits for child to finish
-            wait(NULL);
-
-            printf("Child process completed.\n");
-        }
-    }
-
-    // METHOD 2: ZOMBIE PROCESS
-    else if (choice == 2)
-    {
-        if (pid == 0)
-        {
-            // Child finishes immediately
-            printf("\nChild Process ID: %d\n", getpid());
-            printf("Child process completed.\n");
-
-            exit(0);
-        }
-        else
-        {
-            // Parent does not call wait immediately
-            printf("\nParent Process ID: %d\n", getpid());
-            printf("Child becomes zombie for 15 seconds.\n");
-
-            sleep(15);
-
-            // Parent collects child's exit status
-            wait(NULL);
-
-            printf("Zombie process cleared.\n");
-        }
-    }
-
-    // METHOD 3: ORPHAN PROCESS
-    else if (choice == 3)
-    {
-        if (pid == 0)
-        {
-            // Child waits while parent exits
-            sleep(5);
-
-            printf("\nChild Process ID: %d\n", getpid());
-            printf("New Parent Process ID: %d\n", getppid());
-
-            printf("Child became orphan process.\n");
-
-            exit(0);
-        }
-        else
-        {
-            // Parent exits before child
-            printf("\nParent Process ID: %d\n", getpid());
-            printf("Parent exiting before child.\n");
-
-            exit(0);
-        }
-    }
-
-    else
-    {
-        printf("Invalid choice!\n");
-
-        if (pid == 0)
-            exit(1);
-        else
-            wait(NULL);
-    }
-
-    return 0;
-}
-
-
 //in terminal
 gcc assignment2.c -o assignment2
 ./assignment2
